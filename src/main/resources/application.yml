@@ -1,0 +1,13 @@
+klineHistory:
+    maxMinuteKlineSize: 240
+    maxHourKlineSize: 240
+    maxDayKlineSize: 120
+
+indicator:
+  provider:
+    maxIndicators: 10
+    stableCoin: USDT
+
+server:
+  port: 8084
+  shutdown: graceful

@@ -1,0 +1,18 @@
+package com.spayker.crypto.analysis.config;
+
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
+
+@Data
+@Configuration
+@ConfigurationProperties(prefix = "exchange.socket-provider.public")
+public class SocketProviderConfig {
+
+    private String url;
+    private String subscribeMethodName;
+    private List<String> subscriptions;
+
+}

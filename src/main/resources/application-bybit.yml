@@ -1,0 +1,16 @@
+klineHistory:
+  minuteIntervalType: 1
+  hourIntervalType: 60
+  dayIntervalType: D
+
+exchange:
+  restProvider:
+    public-api-name: public-bybit-exchange
+    url: https://api.bybit.com
+  socketProvider:
+    public:
+      url: wss://stream.bybit.com/v5/public/spot
+      subscribe-method-name: subscribe
+      subscriptions:
+        - "tickers."
+        - "kline.1."

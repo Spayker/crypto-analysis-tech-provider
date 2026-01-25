@@ -1,0 +1,82 @@
+{
+	"info": {
+		"_postman_id": "b9dbf792-8d7e-40e6-82d4-6c4caae2ae70",
+		"name": "crypto-analysis- tech-provider",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Add new indicator per symbol",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "adminpass",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "admin",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8084/v1/btcusdt/tech/indicators/rsi?timeFrame=hour",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8084",
+					"path": [
+						"v1",
+						"btcusdt",
+						"tech",
+						"indicators",
+						"rsi"
+					],
+					"query": [
+						{
+							"key": "timeFrame",
+							"value": "hour"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get indicator data",
+			"request": {
+				"method": "GET",
+				"header": []
+			},
+			"response": []
+		},
+		{
+			"name": "Get available indications",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8084/v1/tech/indicators",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8084",
+					"path": [
+						"v1",
+						"tech",
+						"indicators"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
