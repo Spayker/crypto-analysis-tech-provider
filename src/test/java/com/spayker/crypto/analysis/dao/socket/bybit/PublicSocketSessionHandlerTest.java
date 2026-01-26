@@ -31,7 +31,7 @@ class PublicSocketSessionHandlerTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         handler = new PublicSocketSessionHandler(socketConfig, socketDataManager);
-        handler.setSymbols(List.of("BTC_USDT"));
+        handler.getSymbols().add("BTCUSDT");
     }
 
     @Test

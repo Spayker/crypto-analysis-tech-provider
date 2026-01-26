@@ -160,13 +160,18 @@ public class IndicatorDataProvider {
     }
 
     public void removeIndicator(TimeFrame timeFrame, String symbol, String indicatorName) {
-        var timeFrameIndicatorData = indicatorData.get(timeFrame);
-        if (timeFrameIndicatorData == null) {
-            return;
-        }
-        Map<String, FixedDataList<String>> symbolIndicatorData = timeFrameIndicatorData.get(symbol);
-        if (symbolIndicatorData != null) {
-            symbolIndicatorData.remove(indicatorName);
+        Map<String, Map<String, FixedDataList<String>>> timeFrameData = indicatorData.get(timeFrame);
+        if (timeFrameData != null) {
+            Map<String, FixedDataList<String>> symbolData = timeFrameData.get(symbol);
+            if (symbolData != null) {
+                symbolData.remove(indicatorName);
+                if (symbolData.isEmpty()) {
+                    timeFrameData.remove(symbol);
+                }
+                if (timeFrameData.isEmpty()) {
+                    indicatorData.remove(timeFrame);
+                }
+            }
         }
     }
 

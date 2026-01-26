@@ -10,6 +10,7 @@ import com.spayker.crypto.analysis.service.validator.exception.UnsupportedTimeFr
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -19,15 +20,16 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 class BusinessRuleValidatorTest {
 
-    private List<IndicatorMetaData> indicatorMetaData;
+    private Map<String, List<IndicatorMetaData>> indicatorMetaData;
 
     @BeforeEach
     void setUp() {
-        indicatorMetaData = List.of(
+        indicatorMetaData = new HashMap<>();
+        indicatorMetaData.put("btcusdt", List.of(
                 new IndicatorMetaData("rsi", 14, "50", "minute"),
                 new IndicatorMetaData("macd", 26, "1.2", "hour"),
                 new IndicatorMetaData("adx", 14, "25", "day")
-        );
+        ));
     }
 
     @Test
@@ -90,15 +92,14 @@ class BusinessRuleValidatorTest {
     }
 
     @Test
-    void validate_shouldPass_whenMaxLimitationEqualsAvailableSize() {
+    void validate_shouldPass_whenMaxLimitationNotReached() {
         IndicatorRequest request = IndicatorRequest.builder()
                 .name("ema")
                 .symbol("btcusdt")
                 .timeFrame(TimeFrame.MINUTE)
                 .build();
-
         assertThatCode(() ->
-                BusinessRuleValidator.validate(request, 3, indicatorMetaData)
+                BusinessRuleValidator.validate(request, 4, indicatorMetaData)
         ).doesNotThrowAnyException();
     }
 
@@ -116,15 +117,15 @@ class BusinessRuleValidatorTest {
     }
 
     @Test
-    void validate_shouldWorkWithZeroValues() {
+    void validate_shouldThrowMaxIndicatorLimitationReachedException_whenLimitIsZero() {
         IndicatorRequest request = IndicatorRequest.builder()
                 .name("rsi")
                 .symbol("btcusdt")
                 .timeFrame(TimeFrame.MINUTE)
                 .build();
 
-        assertThatCode(() ->
-                BusinessRuleValidator.validate(request, 0, List.of())
-        ).doesNotThrowAnyException();
+        assertThatThrownBy(() ->
+                BusinessRuleValidator.validate(request, 0, Map.of())
+        ).isInstanceOf(MaxIndicatorLimitationReachedException.class);
     }
 }

@@ -30,17 +30,55 @@ From the beginning the user with ADMIN role must use POST end point to add indic
 ## REST API end points
 Below is a table of REST endpoints defined in `TechIndicatorController`.
 
-| Method | Endpoint | Parameters | Description | Authorization |
-|--------|----------|-------------|-------------|----------------|
-| GET | `/v1/tech/indicators` | — | Fetch all available technical indicators | Not required |
-| GET | `/v1/{symbol}/tech/indicators/{indicatorName}` | `symbol` — [a-zA-Z]{1,10}<br>`indicatorName` — string<br>`timeFrame` — query param | Retrieve indicator data for a specific symbol | Not required |
-| POST | `/v1/{symbol}/tech/indicators/{indicatorName}` | `symbol` — [a-zA-Z]{1,10}<br>`indicatorName` — string<br>`timeFrame` — query param | Add a new technical indicator for a symbol (accessible via admin panel) | Requires `ADMIN` role |--------|----------|-------------|--------------|----------------|
+| Method | Endpoint | Parameters | Description                                                             | Authorization |
+|--------|----------|-------------|-------------------------------------------------------------------------|----------------|
+| GET    | `/v1/tech/indicators` | — | Fetch all available technical indicators                                | Not required |
+| GET    | `/v1/{symbol}/tech/indicators/{indicatorName}` | `symbol` — [a-zA-Z]{1,10}<br>`indicatorName` — string<br>`timeFrame` — query param | Retrieve indicator data for a specific symbol                           | Not required |
+| POST   | `/v1/{symbol}/tech/indicators/{indicatorName}` | `symbol` — [a-zA-Z]{1,10}<br>`indicatorName` — string<br>`timeFrame` — query param | Add a new technical indicator for a symbol| Requires `ADMIN` role |
+| DELETE | `/v1/{symbol}/tech/indicators/{indicatorName}` | `symbol` — [a-zA-Z]{1,10}<br>`indicatorName` — string<br>`timeFrame` — query param | Removes technical indicator for a symbol  | Requires `ADMIN` role |--------|----------|-------------|--------------|----------------|
 
-### Example Request
+### Example Requests
 ```
-GET /v1/btc/tech/indicators/rsi?timeFrame=hour
-```
+GET /v1/tech/indicators
+{
+    "btcUSDT": [
+        {
+            "name": "rsi",
+            "size": 225,
+            "last": "50.19",
+            "timeFrame": "hour"
+        },
+        {
+            "name": "bolBands",
+            "size": 221,
+            "last": "87421.64,88552.39,86290.88",
+            "timeFrame": "hour"
+        }
+    ],
+    "ethUSDT": [
+        {
+            "name": "bolBands",
+            "size": 221,
+            "last": "2863.28,2933.56,2793.01",
+            "timeFrame": "hour"
+        }
+    ]
+}
 
+GET /v1/eth/tech/indicators/rsi?timeFrame=hour
+Response example:
+{
+    "coin": "ethUSDT",
+    "timeFrame": "hour",
+    "data": [
+        "48.71",
+        "48.49",
+        ...
+        "53.97"
+    ]
+}
+
+```
 ---
 
 ## How It Works
@@ -79,16 +117,23 @@ Main components:
 8. GitHub Actions
 
 ## How To Run
-Run the application with Bybit profile:
+For local IDE only: use local run config with added VM option:
 ```
 -Dspring.profiles.active=bybit
+```
+
+Docker run:
+```
+docker build -t crypto-analysis-tech-provider .
+docker run -d --name crypto-analysis-tech-provider \
+  -p 8084:8084 \
+  crypto-analysis-tech-provider  
 ```
 
 ## Further vectors of improvements
 Most exciting vectors of improvements are presented below:
 - different exchanges support (Binance, CoinBase, Kraken etc...)
 - different indicators support (ADX, EMA, ATR etc...)
-- extended admin tools (removing of already added indications)
 - security part (enabling https, adding jwt)
 - indicator data persistence for accumulating of bigger data volumes per exchange, symbol, indicator, time frame
 - socket subscription to provide latest changes of indications

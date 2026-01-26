@@ -2,12 +2,9 @@ package com.spayker.crypto.analysis.dao.socket;
 
 import com.spayker.crypto.analysis.config.SocketProviderConfig;
 import com.spayker.crypto.analysis.dao.socket.bybit.PublicSocketSessionHandler;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 
-@Slf4j
 @Service
 public class PublicWebSocketManager {
 
@@ -23,21 +20,17 @@ public class PublicWebSocketManager {
         );
     }
 
-    public void stopListening() {
-        reconnectWebSocketManager.setAutoStartup(false);
-        reconnectWebSocketManager.stop();
-        log.info("Public socket listening is stopped.");
-    }
-
-    public void startListening(List<String> symbols) {
-        publicSocketSessionHandler.setSymbols(symbols);
+    public void startListening(String symbol) {
+        publicSocketSessionHandler.subscribeSymbol(symbol);
         reconnectWebSocketManager.setAutoStartup(true);
         reconnectWebSocketManager.start();
-        log.info("Public socket listening is started.");
+    }
+
+    public void stopListening(String symbol) {
+        publicSocketSessionHandler.unsubscribeSymbol(symbol);
     }
 
     public static void reconnect() {
-        log.warn("Reconnecting to public socket API");
         reconnectWebSocketManager.setAutoStartup(false);
         reconnectWebSocketManager.stop();
         reconnectWebSocketManager.setAutoStartup(true);

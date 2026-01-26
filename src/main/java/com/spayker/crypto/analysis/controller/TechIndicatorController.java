@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Validated
@@ -31,7 +33,7 @@ public class TechIndicatorController {
     private final TechIndicatorManager techIndicatorManager;
 
     @GetMapping("/tech/indicators")
-    public ResponseEntity<List<IndicatorMetaData>> fetchAvailableIndicators() {
+    public ResponseEntity<Map<String, List<IndicatorMetaData>>> fetchAvailableIndicators() {
         log.debug("Received fetch all available indications request");
         return ResponseEntity.ok(techIndicatorManager.getAvailableIndications());
     }
@@ -60,5 +62,19 @@ public class TechIndicatorController {
                 .timeFrame(TimeFrame.valueOf(timeFrame.toUpperCase()))
                 .build());
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{symbol}/tech/indicators/{indicatorName}")
+    public ResponseEntity<Void> removeIndicator(@PathVariable @Pattern(regexp = "[a-zA-Z]{1,10}") String symbol,
+                                                        @PathVariable String indicatorName,
+                                                        @RequestParam String timeFrame) {
+        log.info("Received remove tech {} indication request for {}", indicatorName, symbol);
+        techIndicatorManager.removeIndicator(IndicatorRequest.builder()
+                .symbol(symbol.toLowerCase())
+                .name(indicatorName)
+                .timeFrame(TimeFrame.valueOf(timeFrame.toUpperCase()))
+                .build());
+        return ResponseEntity.noContent().build();
     }
 }

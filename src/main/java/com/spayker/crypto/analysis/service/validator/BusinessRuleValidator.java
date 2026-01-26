@@ -30,24 +30,31 @@ public class BusinessRuleValidator {
 
     public static void validate(IndicatorRequest indicatorRequest,
                                 int maxLimitation,
-                                List<IndicatorMetaData> indicatorMetaData) {
+                                Map<String, List<IndicatorMetaData>> indicatorMetaData) {
 
-        boolean alreadyExists = indicatorMetaData.stream()
-                .anyMatch(meta ->
-                        meta.name().equalsIgnoreCase(indicatorRequest.name())
-                                && meta.timeFrame().equalsIgnoreCase(
-                                indicatorRequest.timeFrame().getValue()
-                        )
-                );
+        String coin = indicatorRequest.symbol();
+        String indName = indicatorRequest.name();
+        String timeFrame = indicatorRequest.timeFrame().getValue().toLowerCase();
+        List<IndicatorMetaData> existingList = indicatorMetaData.get(coin);
 
-        if (alreadyExists) {
-            throw new IndicatorAlreadyExistsException(
-                    indicatorRequest.name(),
-                    indicatorRequest.timeFrame().getValue()
-            );
+        if (existingList != null) {
+            for (IndicatorMetaData existing : existingList) {
+                boolean sameName = existing.name().equalsIgnoreCase(indName);
+                boolean sameTimeFrame = existing.timeFrame().equalsIgnoreCase(timeFrame);
+                if (sameName && sameTimeFrame) {
+                    throw new IndicatorAlreadyExistsException(indName, timeFrame);
+                }
+                if (sameName && !sameTimeFrame) {
+                    return;
+                }
+            }
         }
+        long totalIndicators = indicatorMetaData.values()
+                .stream()
+                .mapToLong(List::size)
+                .sum();
 
-        if (maxLimitation < indicatorMetaData.size()) {
+        if (totalIndicators >= maxLimitation) {
             throw new MaxIndicatorLimitationReachedException();
         }
     }

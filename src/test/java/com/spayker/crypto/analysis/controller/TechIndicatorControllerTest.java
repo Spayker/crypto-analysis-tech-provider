@@ -13,6 +13,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -30,17 +31,25 @@ class TechIndicatorControllerTest {
 
     @Test
     void fetchAvailableIndicators_ShouldReturnList() throws Exception {
-        List<IndicatorMetaData> mockList = List.of(
-                new IndicatorMetaData("SMA", 14, "50000.0", "hour"),
-                new IndicatorMetaData("EMA", 21, "51000.0", "hour")
+        Map<String, List<IndicatorMetaData>> mockList = Map.of(
+                "btcusdt", List.of(
+                        new IndicatorMetaData("SMA", 14, "50000.0", "hour"),
+                        new IndicatorMetaData("EMA", 21, "51000.0", "hour")
+                )
         );
 
         when(techIndicatorManager.getAvailableIndications()).thenReturn(mockList);
 
         mockMvc.perform(get("/v1/tech/indicators"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("SMA"))
-                .andExpect(jsonPath("$[1].name").value("EMA"));
+                .andExpect(jsonPath("$.btcusdt[0].name").value("SMA"))
+                .andExpect(jsonPath("$.btcusdt[0].size").value(14))
+                .andExpect(jsonPath("$.btcusdt[0].last").value("50000.0"))
+                .andExpect(jsonPath("$.btcusdt[0].timeFrame").value("hour"))
+                .andExpect(jsonPath("$.btcusdt[1].name").value("EMA"))
+                .andExpect(jsonPath("$.btcusdt[1].size").value(21))
+                .andExpect(jsonPath("$.btcusdt[1].last").value("51000.0"))
+                .andExpect(jsonPath("$.btcusdt[1].timeFrame").value("hour"));
     }
 
     @Test

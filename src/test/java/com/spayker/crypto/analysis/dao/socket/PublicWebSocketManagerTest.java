@@ -46,13 +46,13 @@ class PublicWebSocketManagerTest {
     @Test
     void startListening_shouldSetSymbolsAndStartWebSocket() {
         // given
-        var symbols = List.of("BTCUSDT", "ETHUSDT");
+        var symbol = "BTCUSDT";
 
         // when
-        publicWebSocketManager.startListening(symbols);
+        publicWebSocketManager.startListening(symbol);
 
         // then
-        verify(publicSocketSessionHandler).setSymbols(symbols);
+        verify(publicSocketSessionHandler).subscribeSymbol(symbol);
         verify(reconnectWebSocketManager).setAutoStartup(true);
         verify(reconnectWebSocketManager).start();
     }
@@ -60,12 +60,13 @@ class PublicWebSocketManagerTest {
     @Test
     void stopListening_shouldStopWebSocket() {
         // given
+        var symbol = "BTCUSDT";
+
         // when
-        publicWebSocketManager.stopListening();
+        publicWebSocketManager.stopListening(symbol);
 
         // then
-        verify(reconnectWebSocketManager).setAutoStartup(false);
-        verify(reconnectWebSocketManager).stop();
+        verify(publicSocketSessionHandler).unsubscribeSymbol(symbol);
     }
 
     @Test
