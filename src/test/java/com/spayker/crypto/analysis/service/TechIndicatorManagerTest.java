@@ -43,11 +43,16 @@ class TechIndicatorManagerTest {
         ));
 
         // when
-        List<IndicatorMetaData> result = techIndicatorManager.getAvailableIndications();
+        Map<String, List<IndicatorMetaData>> result = techIndicatorManager.getAvailableIndications();
 
         // then
-        assertThat(result).hasSize(1);
-        IndicatorMetaData meta = result.getFirst();
+        assertThat(result).hasSize(1); // только одна монета "btc"
+        assertThat(result).containsKey("btc");
+
+        List<IndicatorMetaData> metaList = result.get("btc");
+        assertThat(metaList).hasSize(1);
+
+        IndicatorMetaData meta = metaList.get(0);
         assertThat(meta.name()).isEqualTo("rsi");
         assertThat(meta.size()).isEqualTo(10);
         assertThat(meta.last()).isEqualTo("123.45");
@@ -79,14 +84,15 @@ class TechIndicatorManagerTest {
         // given
         IndicatorRequest request = new IndicatorRequest("macd", "ETH", TimeFrame.HOUR);
         when(indicatorProviderConfig.getStableCoin()).thenReturn("USDT");
+        when(indicatorProviderConfig.getMaxIndicators()).thenReturn(5);
 
         // when
         techIndicatorManager.addIndicatorBySymbol(request);
 
         // then
         verify(indicatorDataProvider).initIndicator(TimeFrame.HOUR, "ETHUSDT", "macd");
-        ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         verify(publicWebSocketManager).startListening(captor.capture());
-        assertThat(captor.getValue()).containsExactly("ETHUSDT");
+        assertThat(captor.getValue()).isEqualTo("ETHUSDT");
     }
 }

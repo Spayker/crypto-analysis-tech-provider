@@ -13,8 +13,8 @@ import com.spayker.crypto.analysis.dao.socket.bybit.dto.SocketMessageRequest;
 import com.spayker.crypto.analysis.dao.socket.bybit.handler.KlineHandler;
 import com.spayker.crypto.analysis.dao.socket.bybit.handler.SocketMessageHandler;
 import com.spayker.crypto.analysis.dao.socket.bybit.handler.TickerHandler;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
@@ -25,9 +25,9 @@ import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
@@ -36,21 +36,19 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class PublicSocketSessionHandler implements WebSocketHandler {
 
-    private static final String PAIR_DELIMITER = "_";
-    private static final String PAIR_DELIMITER_REPLACEMENT = "";
-    private static final String SESSION_ID_MSG = "Session id: {}";
-
-    private final Gson mGson = new Gson();
+    private final Gson gson = new Gson();
     private final SocketProviderConfig socketConfig;
     private final SocketDataManager socketDataManager;
 
-
+    private final Gson mGson = new Gson();
     private final Object lockObj = new Object();
-
-    @Setter
-    private List<String> symbols;
-
     private final Map<String, Long> lastPingTime = new ConcurrentHashMap<>();
+    private final Set<WebSocketSession> activeSessions = ConcurrentHashMap.newKeySet();
+
+    private static final String SESSION_ID_MSG = "Session id: {}";
+
+    @Getter
+    private final Set<String> symbols = ConcurrentHashMap.newKeySet();
 
     private final Map<MessageTypes, SocketMessageHandler> messageHandlers = Map.of(
             MessageTypes.TICKERS, new TickerHandler(),
@@ -58,15 +56,10 @@ public class PublicSocketSessionHandler implements WebSocketHandler {
     );
 
     @Override
-    public void afterConnectionEstablished(final WebSocketSession session) throws Exception {
-        log.info("Market's session [{}] has been established", session.getId());
-        SocketMessageRequest socketMessage = formSubscriptionMessage();
-        WebSocketMessage<?> sendMessage = new TextMessage(mGson.toJson(socketMessage));
-        synchronized (lockObj) {
-            if (session.isOpen()) {
-                session.sendMessage(sendMessage);
-            }
-        }
+    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+        activeSessions.add(session);
+        log.info("New WS session {} established", session.getId());
+        sendSubscribeForAllSymbols(session);
     }
 
     @Override
@@ -83,7 +76,6 @@ public class PublicSocketSessionHandler implements WebSocketHandler {
             KlineSocketMessage klineSocketMessage = (KlineSocketMessage) messageHandlers.get(MessageTypes.KLINE).handleMessage(message);
             String symbol = getSymbolFromKlinePayload(payload);
             socketDataManager.transferKlineData(symbol, klineSocketMessage);
-
         }
 
         lastPingTime.compute(session.getId(), (id, lastTime) -> {
@@ -94,6 +86,50 @@ public class PublicSocketSessionHandler implements WebSocketHandler {
             }
             return lastTime;
         });
+    }
+
+    @Override
+    public void handleTransportError(final WebSocketSession session, final Throwable exception) {
+        log.debug(SESSION_ID_MSG, session.getId());
+        log.error("Socket transport error occurred: {}", exception.getMessage());
+    }
+
+    @Override
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+        activeSessions.remove(session);
+        log.warn("WS session {} closed: {}", session.getId(), status.getReason());
+
+        PublicWebSocketManager.reconnect();
+    }
+
+    @Override
+    public boolean supportsPartialMessages() {
+        return false;
+    }
+
+    public void subscribeSymbol(String symbol) {
+        symbols.add(symbol);
+        List<String> topics = preparePairedNameTopics(symbol);
+
+        broadcast(buildMessage("subscribe", topics));
+        log.info("Subscribed to symbol: {}", symbol);
+    }
+
+    public void unsubscribeSymbol(String symbol) {
+        if (symbols.remove(symbol)) {
+            List<String> topics = preparePairedNameTopics(symbol);
+
+            broadcast(buildMessage("unsubscribe", topics));
+            log.info("Unsubscribed from symbol: {}", symbol);
+        }
+    }
+
+    private void sendSubscribeForAllSymbols(WebSocketSession session) {
+        for (String symbol : symbols) {
+            List<String> topics = preparePairedNameTopics(symbol);
+            sendToSession(session, buildMessage("subscribe", topics));
+        }
+        log.info("Resubscribed {} symbols on new session {}", symbols.size(), session.getId());
     }
 
     private void sendPingMessage(final WebSocketSession session) {
@@ -113,35 +149,38 @@ public class PublicSocketSessionHandler implements WebSocketHandler {
         }
     }
 
-    @Override
-    public void handleTransportError(final WebSocketSession session, final Throwable exception) {
-        log.debug(SESSION_ID_MSG, session.getId());
-        log.error("Socket transport error occurred: {}", exception.getMessage());
+    private TextMessage buildMessage(String operation, List<String> topics) {
+        SocketMessageRequest req = new SocketMessageRequest(
+                "",
+                operation,
+                topics.toArray(String[]::new)
+        );
+        return new TextMessage(gson.toJson(req));
     }
 
-    @Override
-    public void afterConnectionClosed(final WebSocketSession session, final CloseStatus closeStatus) {
-        log.debug(SESSION_ID_MSG, session.getId());
-        log.info("Connection closed: {}", closeStatus.getReason());
-        PublicWebSocketManager.reconnect();
+    private void broadcast(TextMessage message) {
+        for (WebSocketSession session : activeSessions) {
+            sendToSession(session, message);
+        }
     }
 
-    @Override
-    public boolean supportsPartialMessages() {
-        return false;
-    }
-
-    SocketMessageRequest formSubscriptionMessage() {
-        final String subscriptionMethodName = socketConfig.getSubscribeMethodName();
-        List<String> topics = new ArrayList<>();
-        symbols.forEach(pN -> topics.addAll(preparePairedNameTopics(pN)));
-        return new SocketMessageRequest("", subscriptionMethodName, topics.toArray(String[]::new));
+    private void sendToSession(WebSocketSession session, TextMessage message) {
+        synchronized (lockObj) {
+            try {
+                if (session.isOpen()) {
+                    session.sendMessage(message);
+                }
+            } catch (Exception e) {
+                log.error("Failed to send message to session {}: {}", session.getId(), e.getMessage());
+                PublicWebSocketManager.reconnect();
+            }
+        }
     }
 
     private List<String> preparePairedNameTopics(String pairName) {
         return socketConfig.getSubscriptions()
                 .stream()
-                .map(sB -> sB.concat(pairName.toLowerCase().replace(PAIR_DELIMITER, PAIR_DELIMITER_REPLACEMENT).toUpperCase()))
+                .map(s -> s.concat(pairName.toLowerCase().replace("_", "").toUpperCase()))
                 .toList();
     }
 

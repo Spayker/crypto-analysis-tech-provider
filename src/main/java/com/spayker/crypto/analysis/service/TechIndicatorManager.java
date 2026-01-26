@@ -13,8 +13,11 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -25,27 +28,41 @@ public class TechIndicatorManager {
     private final IndicatorDataProvider indicatorDataProvider;
     private final PublicWebSocketManager publicWebSocketManager;
 
-    public List<IndicatorMetaData> getAvailableIndications() {
+    public Map<String, List<IndicatorMetaData>> getAvailableIndications() {
         Map<TimeFrame, Map<String, Map<String, FixedDataList<String>>>> rawData =
                 indicatorDataProvider.getRawIndicatorData();
 
         return rawData.entrySet().stream()
                 .flatMap(tfEntry -> {
                     TimeFrame timeFrame = tfEntry.getKey();
-                    return tfEntry.getValue().values().stream()
-                            .flatMap(map -> map.entrySet().stream())
-                            .map(indicatorEntry -> {
-                                FixedDataList<String> list = indicatorEntry.getValue();
-                                String lastValue = list.getLast();
-                                return new IndicatorMetaData(
-                                        indicatorEntry.getKey(),
-                                        list.getSize(),
-                                        lastValue,
-                                        timeFrame.getValue().toLowerCase()
-                                );
+                    return tfEntry.getValue().entrySet().stream()
+                            .flatMap(coinEntry -> {
+                                String coin = coinEntry.getKey();
+
+                                return coinEntry.getValue().entrySet().stream()
+                                        .map(indEntry -> {
+                                            FixedDataList<String> list = indEntry.getValue();
+                                            String lastValue = list.getLast();
+
+                                            IndicatorMetaData meta = new IndicatorMetaData(
+                                                    indEntry.getKey(),
+                                                    list.getSize(),
+                                                    lastValue,
+                                                    timeFrame.getValue().toLowerCase()
+                                            );
+
+                                            return Map.entry(coin, meta);
+                                        });
                             });
                 })
-                .toList();
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> new ArrayList<>(List.of(e.getValue())),
+                        (list1, list2) -> {
+                            list1.addAll(list2);
+                            return list1;
+                        }
+                ));
     }
 
     public IndicatorResponse getTechIndicatorData(IndicatorRequest indicatorRequest) {
@@ -68,6 +85,25 @@ public class TechIndicatorManager {
         indicatorDataProvider.initIndicator(indicatorRequest.timeFrame(),
                 symbol,
                 indicatorRequest.name());
-        publicWebSocketManager.startListening(List.of(symbol));
+        publicWebSocketManager.startListening(symbol);
+    }
+
+    public void removeIndicator(IndicatorRequest indicatorRequest) {
+        String symbol = indicatorRequest.symbol() + indicatorProviderConfig.getStableCoin();
+        TimeFrame timeFrame = indicatorRequest.timeFrame();
+        String indicatorName = indicatorRequest.name();
+        indicatorDataProvider.removeIndicator(timeFrame, symbol, indicatorName);
+        Map<TimeFrame, Map<String, Map<String, FixedDataList<String>>>> rawData =
+                indicatorDataProvider.getRawIndicatorData();
+
+        boolean hasIndicatorsLeft = rawData.getOrDefault(timeFrame, Map.of())
+                .getOrDefault(symbol, Map.of())
+                .values()
+                .stream()
+                .anyMatch(list -> list != null && list.getSize() > 0);
+        if (!hasIndicatorsLeft) {
+            publicWebSocketManager.stopListening(symbol);
+            log.info("Stopped public socket subscription for symbol {} as no indicators remain", symbol);
+        }
     }
 }
