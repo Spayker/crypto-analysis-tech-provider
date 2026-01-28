@@ -29,13 +29,13 @@ class ReconnectWebSocketManagerTest {
 
     private WebSocketClient webSocketClient;
 
-    private ReconnectWebSocketManager manager;
+    private ExchangeConnectionSupportManager manager;
 
     @BeforeEach
     void setUp() {
         lenient().when(socketProviderConfig.getUrl()).thenReturn("ws://localhost:8080/ws");
         webSocketClient = mock(WebSocketClient.class, withSettings().extraInterfaces(Lifecycle.class));
-        manager = spy(new ReconnectWebSocketManager(webSocketHandler, socketProviderConfig));
+        manager = spy(new ExchangeConnectionSupportManager(webSocketHandler, socketProviderConfig));
         ReflectionTestUtils.setField(manager, "webSocketClient", webSocketClient);
         lenient().doNothing().when(manager).openConnection();
     }

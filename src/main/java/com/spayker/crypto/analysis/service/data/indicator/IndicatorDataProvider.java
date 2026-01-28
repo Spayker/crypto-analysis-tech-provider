@@ -8,6 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -97,16 +100,17 @@ public class IndicatorDataProvider {
             if (isEmpty(klines)) {
                 continue;
             }
-            updateIndicators(indicators, klines);
+            updateIndicators(indicators, klines, timeFrame);
         }
     }
 
-    private void updateIndicators(Map<String, FixedDataList<String>> indicators, List<Kline> klines) {
-        int candleCount = klines.size();
+    private void updateIndicators(Map<String, FixedDataList<String>> indicators,
+                                  List<Kline> klines,
+                                  TimeFrame timeFrame) {
         for (var indicatorEntry : indicators.entrySet()) {
             String indicatorName = indicatorEntry.getKey();
             IndicatorCalculator calculator = indicatorCalculators.get(indicatorName);
-            updateSingleIndicator(calculator, indicatorEntry.getValue(), klines, candleCount);
+            updateSingleIndicator(calculator, indicatorEntry.getValue(), klines, timeFrame);
         }
     }
 
@@ -114,20 +118,31 @@ public class IndicatorDataProvider {
             IndicatorCalculator calculator,
             FixedDataList<String> indicatorData,
             List<Kline> klines,
-            int candleCount
+            TimeFrame timeFrame
     ) {
+        Kline lastCandle = klines.getLast();
+        long lastTs = lastCandle.getStartTime();
+
         List<String> values = calculator.calculate(klines);
+        if (values.isEmpty()) return;
         String lastValue = values.getLast();
 
-        int indicatorSize = indicatorData.getSize();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime lastIndicatorTime = Instant.ofEpochMilli(lastTs)
+                .atZone(ZoneOffset.UTC)
+                .toLocalDateTime();
 
-        if (indicatorSize == candleCount) {
-            indicatorData.replaceLast(lastValue);
-            return;
+        boolean isNewPeriod = false;
+        switch (timeFrame) {
+            case MINUTE -> isNewPeriod = now.getMinute() != lastIndicatorTime.getMinute();
+            case HOUR   -> isNewPeriod = now.getHour()   != lastIndicatorTime.getHour();
+            case DAY   -> isNewPeriod = now.getDayOfMonth() != lastIndicatorTime.getDayOfMonth();
         }
 
-        if (indicatorSize == candleCount - 1) {
+        if (isNewPeriod) {
             indicatorData.add(lastValue);
+        } else {
+            indicatorData.replaceLast(lastValue);
         }
     }
 

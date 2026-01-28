@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class SocketDataManager {
+public class SocketDataTransfer {
 
     private final TradeHistoryManager tradeHistoryManager;
     private final IndicatorDataProvider indicatorDataProvider;
