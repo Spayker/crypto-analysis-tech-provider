@@ -21,11 +21,11 @@ class SocketDataManagerTest {
     @Mock
     private IndicatorDataProvider indicatorDataProvider;
 
-    private SocketDataManager socketDataManager;
+    private SocketDataTransfer socketDataTransfer;
 
     @BeforeEach
     void setUp() {
-        socketDataManager = new SocketDataManager(tradeHistoryManager, indicatorDataProvider);
+        socketDataTransfer = new SocketDataTransfer(tradeHistoryManager, indicatorDataProvider);
     }
 
     @Test
@@ -42,7 +42,7 @@ class SocketDataManagerTest {
                 .build();
 
         // Act
-        socketDataManager.transferTickerData(tickerMessage);
+        socketDataTransfer.transferTickerData(tickerMessage);
 
         // Assert
         verify(tradeHistoryManager).processTickerClosePriceMessage("BTCUSDT", 50000.0);
@@ -68,7 +68,7 @@ class SocketDataManagerTest {
                 .build();
 
         // Act
-        socketDataManager.transferKlineData(symbol, klineMessage);
+        socketDataTransfer.transferKlineData(symbol, klineMessage);
 
         // Assert
         verify(tradeHistoryManager).processKlineMessage(eq(symbol), argThat(kline ->

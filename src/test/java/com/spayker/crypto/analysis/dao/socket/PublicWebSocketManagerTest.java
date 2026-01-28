@@ -1,85 +1,91 @@
 package com.spayker.crypto.analysis.dao.socket;
 
-import com.spayker.crypto.analysis.config.SocketProviderConfig;
 import com.spayker.crypto.analysis.dao.socket.bybit.PublicSocketSessionHandler;
+import com.spayker.crypto.analysis.dao.socket.bybit.handler.WebSocketReconnectEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockitoExtension.class)
 class PublicWebSocketManagerTest {
 
     @Mock
-    private PublicSocketSessionHandler publicSocketSessionHandler;
+    private PublicSocketSessionHandler socketHandler; // ← Мокируем
 
     @Mock
-    private SocketProviderConfig socketProviderConfig;
+    private ExchangeConnectionSupportManager exchangeConnectionSupportManager;
 
-    @Mock
-    private ReconnectWebSocketManager reconnectWebSocketManager;
-
-    private PublicWebSocketManager publicWebSocketManager;
+    private PublicWebSocketManager webSocketManager;
 
     @BeforeEach
     void setUp() {
-        when(socketProviderConfig.getUrl())
-                .thenReturn("ws://localhost:8080/ws");
-
-        publicWebSocketManager = new PublicWebSocketManager(
-                socketProviderConfig,
-                publicSocketSessionHandler
-        );
-
-        ReflectionTestUtils.setField(
-                PublicWebSocketManager.class,
-                "reconnectWebSocketManager",
-                reconnectWebSocketManager
-        );
+        webSocketManager = new PublicWebSocketManager(exchangeConnectionSupportManager, socketHandler);
     }
 
     @Test
-    void startListening_shouldSetSymbolsAndStartWebSocket() {
+    void startListening_shouldSubscribeSymbolAndStartManager() {
         // given
-        var symbol = "BTCUSDT";
+        String symbol = "BTCUSDT";
 
         // when
-        publicWebSocketManager.startListening(symbol);
+        webSocketManager.startListening(symbol);
 
         // then
-        verify(publicSocketSessionHandler).subscribeSymbol(symbol);
-        verify(reconnectWebSocketManager).setAutoStartup(true);
-        verify(reconnectWebSocketManager).start();
+        verify(socketHandler).subscribeSymbol(symbol);
+        verify(exchangeConnectionSupportManager).setAutoStartup(true);
+        verify(exchangeConnectionSupportManager).start();
     }
 
     @Test
-    void stopListening_shouldStopWebSocket() {
+    void stopListening_shouldUnsubscribeSymbol() {
         // given
-        var symbol = "BTCUSDT";
+        String symbol = "BTCUSDT";
 
         // when
-        publicWebSocketManager.stopListening(symbol);
+        webSocketManager.stopListening(symbol);
 
         // then
-        verify(publicSocketSessionHandler).unsubscribeSymbol(symbol);
+        verify(socketHandler).unsubscribeSymbol(symbol);
     }
 
     @Test
-    void reconnect_shouldRestartWebSocket() {
+    void onReconnectEvent_shouldRestartExchangeConnection() {
         // given
+        WebSocketReconnectEvent event = new WebSocketReconnectEvent(this, "Test reconnect");
+
         // when
-        PublicWebSocketManager.reconnect();
+        webSocketManager.onReconnectEvent(event);
 
         // then
-        verify(reconnectWebSocketManager).setAutoStartup(false);
-        verify(reconnectWebSocketManager).stop();
-        verify(reconnectWebSocketManager).setAutoStartup(true);
-        verify(reconnectWebSocketManager).start();
+        verify(exchangeConnectionSupportManager).setAutoStartup(false);
+        verify(exchangeConnectionSupportManager).stop();
+        verify(exchangeConnectionSupportManager).setAutoStartup(true);
+        verify(exchangeConnectionSupportManager).start();
+
+        AtomicBoolean reconnectingField = (AtomicBoolean)
+                org.springframework.test.util.ReflectionTestUtils.getField(webSocketManager, "reconnecting");
+        assertNotNull(reconnectingField);
+        assertFalse(reconnectingField.get());
+    }
+
+    @Test
+    void onReconnectEvent_shouldSkipIfAlreadyReconnecting() {
+        // given
+        WebSocketReconnectEvent event = new WebSocketReconnectEvent(this,"Test reconnect");
+        org.springframework.test.util.ReflectionTestUtils.setField(webSocketManager, "reconnecting", new AtomicBoolean(true));
+
+        // when
+        webSocketManager.onReconnectEvent(event);
+
+        // then
+        verify(exchangeConnectionSupportManager, never()).stop();
+        verify(exchangeConnectionSupportManager, never()).start();
     }
 }
-

@@ -50,6 +50,50 @@
 			"response": []
 		},
 		{
+			"name": "Remove indicator per symbol",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "adminpass",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "admin",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8084/v1/btcusdt/tech/indicators/rsi?timeFrame=hour",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8084",
+					"path": [
+						"v1",
+						"btcusdt",
+						"tech",
+						"indicators",
+						"rsi"
+					],
+					"query": [
+						{
+							"key": "timeFrame",
+							"value": "hour"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "Get indicator data",
 			"request": {
 				"method": "GET",

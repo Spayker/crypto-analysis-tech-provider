@@ -17,7 +17,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
-public class ReconnectWebSocketManager extends ConnectionManagerSupport {
+public class ExchangeConnectionSupportManager extends ConnectionManagerSupport {
 
     private final WebSocketClient webSocketClient = new StandardWebSocketClient();
     private final WebSocketHandler webSocketHandler;
@@ -26,9 +26,9 @@ public class ReconnectWebSocketManager extends ConnectionManagerSupport {
     private final WebSocketHttpHeaders headers = new WebSocketHttpHeaders();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
-    public ReconnectWebSocketManager(WebSocketHandler webSocketHandler,
-                                     SocketProviderConfig socketProviderConfig,
-                                     Object... uriVariables) {
+    public ExchangeConnectionSupportManager(WebSocketHandler webSocketHandler,
+                                            SocketProviderConfig socketProviderConfig,
+                                            Object... uriVariables) {
         super(socketProviderConfig.getUrl(), uriVariables);
         this.webSocketHandler = decorateWebSocketHandler(webSocketHandler);
     }

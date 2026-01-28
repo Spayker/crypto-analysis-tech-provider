@@ -1,39 +1,52 @@
 package com.spayker.crypto.analysis.dao.socket;
 
-import com.spayker.crypto.analysis.config.SocketProviderConfig;
 import com.spayker.crypto.analysis.dao.socket.bybit.PublicSocketSessionHandler;
+import com.spayker.crypto.analysis.dao.socket.bybit.handler.WebSocketReconnectEvent;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 
+
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class PublicWebSocketManager {
 
-    private final PublicSocketSessionHandler publicSocketSessionHandler;
-    private static ReconnectWebSocketManager reconnectWebSocketManager;
+    private final ExchangeConnectionSupportManager exchangeConnectionSupportManager;
+    private final PublicSocketSessionHandler socketHandler;
 
-    public PublicWebSocketManager(SocketProviderConfig socketProviderConfig,
-                                  PublicSocketSessionHandler publicSocketSessionHandler) {
-        this.publicSocketSessionHandler = publicSocketSessionHandler;
-        this.reconnectWebSocketManager = new ReconnectWebSocketManager(
-                publicSocketSessionHandler,
-                socketProviderConfig
-        );
-    }
+    private final AtomicBoolean reconnecting = new AtomicBoolean(false);
 
     public void startListening(String symbol) {
-        publicSocketSessionHandler.subscribeSymbol(symbol);
-        reconnectWebSocketManager.setAutoStartup(true);
-        reconnectWebSocketManager.start();
+        socketHandler.subscribeSymbol(symbol);
+        exchangeConnectionSupportManager.setAutoStartup(true);
+        exchangeConnectionSupportManager.start();
     }
 
     public void stopListening(String symbol) {
-        publicSocketSessionHandler.unsubscribeSymbol(symbol);
+        socketHandler.unsubscribeSymbol(symbol);
     }
 
-    public static void reconnect() {
-        reconnectWebSocketManager.setAutoStartup(false);
-        reconnectWebSocketManager.stop();
-        reconnectWebSocketManager.setAutoStartup(true);
-        reconnectWebSocketManager.start();
+    @EventListener
+    public void onReconnectEvent(WebSocketReconnectEvent event) {
+        if (!reconnecting.compareAndSet(false, true)) {
+            log.debug("Reconnect already in progress, skipping");
+            return;
+        }
+
+        try {
+            log.warn("WS reconnect requested: {}", event.reason());
+            exchangeConnectionSupportManager.setAutoStartup(false);
+            exchangeConnectionSupportManager.stop();
+            exchangeConnectionSupportManager.setAutoStartup(true);
+            exchangeConnectionSupportManager.start();
+        } catch (Exception e) {
+            log.error("Reconnect failed", e);
+        } finally {
+            reconnecting.set(false);
+        }
     }
 }
