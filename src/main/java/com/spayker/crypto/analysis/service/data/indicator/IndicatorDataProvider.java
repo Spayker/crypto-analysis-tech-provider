@@ -1,6 +1,7 @@
 package com.spayker.crypto.analysis.service.data.indicator;
 
 import com.spayker.crypto.analysis.dao.rest.bybit.dto.kline.Kline;
+import com.spayker.crypto.analysis.dao.socket.publisher.IndicatorSocketPublisher;
 import com.spayker.crypto.analysis.dto.indicator.TimeFrame;
 import com.spayker.crypto.analysis.dto.indicator.FixedDataList;
 import com.spayker.crypto.analysis.service.data.history.TradeHistoryManager;
@@ -23,14 +24,17 @@ import java.util.concurrent.ConcurrentHashMap;
 public class IndicatorDataProvider {
 
     private final TradeHistoryManager tradeHistoryManager;
+    private final IndicatorSocketPublisher indicatorSocketPublisher;
     private final Map<String, IndicatorCalculator> indicatorCalculators;
 
     private final Map<TimeFrame, Map<String, Map<String, FixedDataList<String>>>> indicatorData =
             new EnumMap<>(TimeFrame.class);
 
     public IndicatorDataProvider(@Autowired TradeHistoryManager tradeHistoryManager,
+                                 @Autowired IndicatorSocketPublisher indicatorSocketPublisher,
                                  @Autowired Map<String, IndicatorCalculator> indicatorCalculators) {
         this.tradeHistoryManager = tradeHistoryManager;
+        this.indicatorSocketPublisher = indicatorSocketPublisher;
         this.indicatorCalculators = indicatorCalculators;
         Arrays.stream(TimeFrame.values()).forEach(tf -> indicatorData.put(tf, new ConcurrentHashMap<>()));
     }
@@ -100,17 +104,24 @@ public class IndicatorDataProvider {
             if (isEmpty(klines)) {
                 continue;
             }
-            updateIndicators(indicators, klines, timeFrame);
+            updateIndicators(symbol, indicators, klines, timeFrame);
         }
     }
 
-    private void updateIndicators(Map<String, FixedDataList<String>> indicators,
+    private void updateIndicators(String symbol,
+                                  Map<String, FixedDataList<String>> indicators,
                                   List<Kline> klines,
                                   TimeFrame timeFrame) {
         for (var indicatorEntry : indicators.entrySet()) {
             String indicatorName = indicatorEntry.getKey();
             IndicatorCalculator calculator = indicatorCalculators.get(indicatorName);
             updateSingleIndicator(calculator, indicatorEntry.getValue(), klines, timeFrame);
+            indicatorSocketPublisher.publish(
+                    symbol,
+                    indicatorName,
+                    indicatorEntry.getValue().getLast(),
+                    timeFrame.getValue().toLowerCase()
+            );
         }
     }
 

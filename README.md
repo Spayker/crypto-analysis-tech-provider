@@ -95,7 +95,7 @@ Response example:
 ---
 
 ## Architecture
-![alt text](resources/jpg/Technical_data_provider.jpg)
+![alt text](resources/svg/Technical_data_provider.svg)
 
 Main components:
 - Tech Indicator Controller: handles user requests, performs request validation, forwards requests to service layer
@@ -130,14 +130,38 @@ docker run -d --name crypto-analysis-tech-provider \
   crypto-analysis-tech-provider  
 ```
 
+## Socket subscription
+The service supports subscription to get latest indicator values by symbol, indicator name and time frame.
+Connect address: ws://localhost:8084/ws
+Subscribe topic examples:
+```
+   /topic/indicator/ethUSDT/rsi/minute
+   /topic/indicator/ethUSDT/rsi/hour
+   /topic/indicator/ethUSDT/rsi/day
+   
+   /topic/indicator/btcUSDT/macd/minute
+   /topic/indicator/btcUSDT/macd/hour
+   /topic/indicator/btcUSDT/macd/day
+```
+
+Published message example:
+```
+   {
+     "symbol": "ethUSDT",
+     "indicator": "rsi",
+     "timeframe": "hour",
+     "value": 47.83
+   }
+```
+
 ## Further vectors of improvements
 Most exciting vectors of improvements are presented below:
 - different exchanges support (Binance, CoinBase, Kraken etc...)
 - different indicators support (ADX, EMA, ATR etc...)
 - security part (enabling https, adding jwt)
 - indicator data persistence for accumulating of bigger data volumes per exchange, symbol, indicator, time frame
-- socket subscription to provide latest changes of indications
 - further improvements of data accuracy generation
+- timestamps for provided data items (rest and socket)
 
 ## License
 GNU 3

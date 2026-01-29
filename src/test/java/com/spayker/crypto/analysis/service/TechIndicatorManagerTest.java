@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 import com.spayker.crypto.analysis.config.IndicatorProviderConfig;
-import com.spayker.crypto.analysis.dao.socket.PublicWebSocketManager;
+import com.spayker.crypto.analysis.dao.socket.exchange.PublicWebSocketManager;
 import com.spayker.crypto.analysis.dto.indicator.*;
 import com.spayker.crypto.analysis.service.data.indicator.IndicatorDataProvider;
 import org.junit.jupiter.api.BeforeEach;
