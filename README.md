@@ -95,7 +95,7 @@ Response example:
 ---
 
 ## Architecture
-![alt text](resources/jpg/Technical_data_provider.jpg)
+![alt text](resources/svg/Technical_data_provider.svg)
 
 Main components:
 - Tech Indicator Controller: handles user requests, performs request validation, forwards requests to service layer
