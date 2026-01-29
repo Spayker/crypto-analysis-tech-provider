@@ -1,7 +1,7 @@
 package com.spayker.crypto.analysis.service;
 
 import com.spayker.crypto.analysis.config.IndicatorProviderConfig;
-import com.spayker.crypto.analysis.dao.socket.PublicWebSocketManager;
+import com.spayker.crypto.analysis.dao.socket.exchange.PublicWebSocketManager;
 import com.spayker.crypto.analysis.dto.indicator.FixedDataList;
 import com.spayker.crypto.analysis.dto.indicator.IndicatorMetaData;
 import com.spayker.crypto.analysis.dto.indicator.IndicatorRequest;
@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;

@@ -1,0 +1,20 @@
+package com.spayker.crypto.analysis.dao.socket.exchange.bybit.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class SocketMessageRequest {
+
+    private String req_id = "";
+    private String op;
+    private String[] args;
+
+    public SocketMessageRequest(String op, String[] args) {
+        this.op = op;
+        this.args = args;
+    }
+}
