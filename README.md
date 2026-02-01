@@ -1,10 +1,11 @@
 # crypto-analysis-tech-provider
 
-[![Build Status](https://github.com/Spayker/crypto-analysis-tech-provider/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Spayker/crypto-analysis-tech-provider/actions/workflows/ci.yml) &nbsp;
+[![Build Status](https://github.com/Spayker/crypto-analysis-tech-provider/actions/workflows/ci-cd.yml/badge.svg?branch=main)](https://github.com/Spayker/crypto-analysis-tech-provider/actions/workflows/ci-cd.yml)
+![Codecov](https://img.shields.io/codecov/c/github/Spayker/crypto-analysis-tech-provider)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/Spayker/crypto-analysis-tech-provider/blob/main/LICENSE)
 
 ## Overview
-Originally, [TradingView](https://www.tradingview.com/) API does not provide any possibilities to get favourite indications (f.e. rsi, macd or bollinger bands). It gives only well shaped UI snippet that can be integrated with frontend and that's it.
+Originally, [TradingView](https://www.tradingview.com/) API does not provide any possibilities to get favourite indications (f.e. RSI, MACD or Bollinger bands). It gives only well shaped UI snippet that can be integrated with frontend and that's it.
 
 This MVP tries to solve the problem, by giving a free REST API, which can provide latest indicator data by requested:
 - time frame
@@ -71,10 +72,19 @@ Response example:
     "coin": "ethUSDT",
     "timeFrame": "hour",
     "data": [
-        "48.71",
-        "48.49",
+        {
+            "value": "50.71",
+            "timestamp": 1769151600000
+        },
         ...
-        "53.97"
+        {
+            "value": "30.25",
+            "timestamp": 1769954400000
+        },
+        {
+            "value": "24.17",
+            "timestamp": 1769958000000
+        }
     ]
 }
 
@@ -150,7 +160,8 @@ Published message example:
      "symbol": "ethUSDT",
      "indicator": "rsi",
      "timeframe": "hour",
-     "value": 47.83
+     "value": 47.83,
+     "timestamp": 1769958000000
    }
 ```
 
@@ -161,7 +172,6 @@ Most exciting vectors of improvements are presented below:
 - security part (enabling https, adding jwt)
 - indicator data persistence for accumulating of bigger data volumes per exchange, symbol, indicator, time frame
 - further improvements of data accuracy generation
-- timestamps for provided data items (rest and socket)
 
 ## License
 GNU 3
