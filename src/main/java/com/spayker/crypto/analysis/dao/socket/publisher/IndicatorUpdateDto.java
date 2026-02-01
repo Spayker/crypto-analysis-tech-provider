@@ -11,5 +11,6 @@ public class IndicatorUpdateDto {
     private String indicator;
     private String timeframe;
     private String value;
+    private long timestamp;
 
 }

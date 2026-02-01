@@ -2,6 +2,7 @@ package com.spayker.crypto.analysis.service.data.indicator;
 
 import com.spayker.crypto.analysis.dao.rest.bybit.dto.kline.Kline;
 import com.spayker.crypto.analysis.dao.socket.publisher.IndicatorSocketPublisher;
+import com.spayker.crypto.analysis.dto.indicator.IndicatorValue;
 import com.spayker.crypto.analysis.dto.indicator.TimeFrame;
 import com.spayker.crypto.analysis.service.data.history.TradeHistoryManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,46 +44,54 @@ class IndicatorDataProviderTest {
 
     @Test
     void initSymbol_shouldCreateEmptySymbolEntry() {
+        // given
+        // when
         dataProvider.initSymbol(TimeFrame.MINUTE, "btcusdt");
 
+        // then
         assertThat(dataProvider.getRawIndicatorData().get(TimeFrame.MINUTE))
                 .containsKey("btcusdt");
     }
 
     @Test
     void initIndicator_shouldPopulateIndicatorData() {
+        // given
         List<Kline> klines = mockKlines(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15);
         when(tradeHistoryManager.getSymbolHistory("btcusdt", TimeFrame.MINUTE))
                 .thenReturn(klines);
         when(calculator.calculate(klines))
                 .thenReturn(List.of("50.0", "51.0", "52.0"));
 
+        // when
         dataProvider.initIndicator(TimeFrame.MINUTE, "btcusdt", "rsi");
 
+        // then
         assertThat(dataProvider.containsIndicator(TimeFrame.MINUTE, "btcusdt", "rsi")).isTrue();
-        assertThat(
-                dataProvider.getIndicatorData(TimeFrame.MINUTE, "btcusdt", "rsi").snapshot()
-        ).containsExactly("50.0", "51.0", "52.0");
+        assertThat(dataProvider.getIndicatorData(TimeFrame.MINUTE, "btcusdt", "rsi").snapshot())
+                .extracting(IndicatorValue::getValue) // берём только значения
+                .containsExactly("50.0", "51.0", "52.0");
     }
 
     @Test
     void getAvailableIndicators_shouldReturnCorrectMap() {
+        // given
         List<Kline> klines = mockKlines(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15);
         when(tradeHistoryManager.getSymbolHistory("btcusdt", TimeFrame.MINUTE))
                 .thenReturn(klines);
         when(calculator.calculate(klines))
                 .thenReturn(List.of("50.0"));
-
         dataProvider.initIndicator(TimeFrame.MINUTE, "btcusdt", "rsi");
 
+        // when
         Map<String, String> available = dataProvider.getAvailableIndicators();
 
-        assertThat(available)
-                .containsEntry("rsi", "minute");
+        // then
+        assertThat(available).containsEntry("rsi", "minute");
     }
 
     @Test
     void removeIndicator_shouldRemoveIndicator() {
+        // given
         List<Kline> klines = mockKlines(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15);
         when(tradeHistoryManager.getSymbolHistory("btcusdt", TimeFrame.MINUTE))
                 .thenReturn(klines);
@@ -92,13 +101,16 @@ class IndicatorDataProviderTest {
         dataProvider.initIndicator(TimeFrame.MINUTE, "btcusdt", "rsi");
         assertThat(dataProvider.containsIndicator(TimeFrame.MINUTE, "btcusdt", "rsi")).isTrue();
 
+        // when
         dataProvider.removeIndicator(TimeFrame.MINUTE, "btcusdt", "rsi");
 
+        // then
         assertThat(dataProvider.containsIndicator(TimeFrame.MINUTE, "btcusdt", "rsi")).isFalse();
     }
 
     @Test
     void removeSymbol_shouldRemoveAllIndicatorsForSymbol() {
+        // given
         List<Kline> klines = mockKlines(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15);
         when(tradeHistoryManager.getSymbolHistory("btcusdt", TimeFrame.MINUTE))
                 .thenReturn(klines);
@@ -106,33 +118,38 @@ class IndicatorDataProviderTest {
                 .thenReturn(List.of("50.0"));
 
         dataProvider.initIndicator(TimeFrame.MINUTE, "btcusdt", "rsi");
+
+        // when
         dataProvider.removeSymbol(TimeFrame.MINUTE, "btcusdt");
 
+        // then
         assertThat(dataProvider.getRawIndicatorData().get(TimeFrame.MINUTE))
                 .doesNotContainKey("btcusdt");
     }
 
     @Test
     void recalculateIndicatorData_shouldUpdateValuesAndPublish() {
+        // given
         List<Kline> klines = mockKlines(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15);
         when(tradeHistoryManager.getSymbolHistory("btcusdt", TimeFrame.MINUTE))
                 .thenReturn(klines);
         when(calculator.calculate(klines))
                 .thenReturn(List.of("50.0", "51.0"));
-
         dataProvider.initIndicator(TimeFrame.MINUTE, "btcusdt", "rsi");
 
+        // when
         dataProvider.recalculateIndicatorData();
 
-        var indicatorData =
-                dataProvider.getIndicatorData(TimeFrame.MINUTE, "btcusdt", "rsi");
+        var indicatorData = dataProvider.getIndicatorData(TimeFrame.MINUTE, "btcusdt", "rsi");
 
-        assertThat(indicatorData.snapshot()).contains("51.0");
-
+        // then
+        assertThat(indicatorData.snapshot())
+                .extracting(IndicatorValue::getValue)
+                .contains("51.0");
         verify(socketPublisher, atLeastOnce()).publish(
                 eq("btcusdt"),
                 eq("rsi"),
-                eq("51.0"),
+                argThat(iv -> "51.0".equals(iv.getValue())), // проверяем value внутри IndicatorValue
                 eq("minute")
         );
     }

@@ -1,5 +1,6 @@
 package com.spayker.crypto.analysis.dao.socket.publisher;
 
+import com.spayker.crypto.analysis.dto.indicator.IndicatorValue;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -12,13 +13,14 @@ public class IndicatorSocketPublisher {
 
     public void publish(String symbol,
                         String indicatorName,
-                        String indicatorValue,
+                        IndicatorValue indicatorValue,
                         String timeFrame) {
         IndicatorUpdateDto indicatorUpdateDto = new IndicatorUpdateDto(
                 symbol,
                 indicatorName,
                 timeFrame,
-                indicatorValue
+                indicatorValue.getValue(),
+                indicatorValue.getTimestamp()
         );
         String topic = String.format(
                 "/topic/indicator/%s/%s/%s",

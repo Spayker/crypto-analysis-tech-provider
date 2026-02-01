@@ -6,6 +6,7 @@ import com.spayker.crypto.analysis.dto.indicator.FixedDataList;
 import com.spayker.crypto.analysis.dto.indicator.IndicatorMetaData;
 import com.spayker.crypto.analysis.dto.indicator.IndicatorRequest;
 import com.spayker.crypto.analysis.dto.indicator.IndicatorResponse;
+import com.spayker.crypto.analysis.dto.indicator.IndicatorValue;
 import com.spayker.crypto.analysis.dto.indicator.TimeFrame;
 import com.spayker.crypto.analysis.service.data.indicator.IndicatorDataProvider;
 import com.spayker.crypto.analysis.service.validator.BusinessRuleValidator;
@@ -28,7 +29,7 @@ public class TechIndicatorManager {
     private final PublicWebSocketManager publicWebSocketManager;
 
     public Map<String, List<IndicatorMetaData>> getAvailableIndications() {
-        Map<TimeFrame, Map<String, Map<String, FixedDataList<String>>>> rawData =
+        Map<TimeFrame, Map<String, Map<String, FixedDataList<IndicatorValue>>>> rawData =
                 indicatorDataProvider.getRawIndicatorData();
 
         return rawData.entrySet().stream()
@@ -40,8 +41,8 @@ public class TechIndicatorManager {
 
                                 return coinEntry.getValue().entrySet().stream()
                                         .map(indEntry -> {
-                                            FixedDataList<String> list = indEntry.getValue();
-                                            String lastValue = list.getLast();
+                                            FixedDataList<IndicatorValue> list = indEntry.getValue();
+                                            String lastValue = list.getLast().getValue();
 
                                             IndicatorMetaData meta = new IndicatorMetaData(
                                                     indEntry.getKey(),
@@ -64,13 +65,13 @@ public class TechIndicatorManager {
                 ));
     }
 
-    public IndicatorResponse getTechIndicatorData(IndicatorRequest indicatorRequest) {
+    public IndicatorResponse<IndicatorValue> getTechIndicatorData(IndicatorRequest indicatorRequest) {
         BusinessRuleValidator.validate(indicatorRequest, indicatorDataProvider.getAvailableIndicators());
         String symbol = indicatorRequest.symbol() + indicatorProviderConfig.getStableCoin();
         TimeFrame timeFrame = indicatorRequest.timeFrame();
         String indicatorName = indicatorRequest.name();
-        FixedDataList<String> indicatorData = indicatorDataProvider.getIndicatorData(timeFrame, symbol, indicatorName);
-        return new IndicatorResponse(
+        FixedDataList<IndicatorValue> indicatorData = indicatorDataProvider.getIndicatorData(timeFrame, symbol, indicatorName);
+        return new IndicatorResponse<>(
                 symbol,
                 timeFrame.getValue(),
                 indicatorData.snapshot()
@@ -92,7 +93,7 @@ public class TechIndicatorManager {
         TimeFrame timeFrame = indicatorRequest.timeFrame();
         String indicatorName = indicatorRequest.name();
         indicatorDataProvider.removeIndicator(timeFrame, symbol, indicatorName);
-        Map<TimeFrame, Map<String, Map<String, FixedDataList<String>>>> rawData =
+        Map<TimeFrame, Map<String, Map<String, FixedDataList<IndicatorValue>>>> rawData =
                 indicatorDataProvider.getRawIndicatorData();
 
         boolean hasIndicatorsLeft = rawData.getOrDefault(timeFrame, Map.of())

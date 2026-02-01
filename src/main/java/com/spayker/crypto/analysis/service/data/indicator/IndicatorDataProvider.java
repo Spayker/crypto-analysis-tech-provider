@@ -2,6 +2,7 @@ package com.spayker.crypto.analysis.service.data.indicator;
 
 import com.spayker.crypto.analysis.dao.rest.bybit.dto.kline.Kline;
 import com.spayker.crypto.analysis.dao.socket.publisher.IndicatorSocketPublisher;
+import com.spayker.crypto.analysis.dto.indicator.IndicatorValue;
 import com.spayker.crypto.analysis.dto.indicator.TimeFrame;
 import com.spayker.crypto.analysis.dto.indicator.FixedDataList;
 import com.spayker.crypto.analysis.service.data.history.TradeHistoryManager;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -27,7 +29,7 @@ public class IndicatorDataProvider {
     private final IndicatorSocketPublisher indicatorSocketPublisher;
     private final Map<String, IndicatorCalculator> indicatorCalculators;
 
-    private final Map<TimeFrame, Map<String, Map<String, FixedDataList<String>>>> indicatorData =
+    private final Map<TimeFrame, Map<String, Map<String, FixedDataList<IndicatorValue>>>> indicatorData =
             new EnumMap<>(TimeFrame.class);
 
     public IndicatorDataProvider(@Autowired TradeHistoryManager tradeHistoryManager,
@@ -39,17 +41,17 @@ public class IndicatorDataProvider {
         Arrays.stream(TimeFrame.values()).forEach(tf -> indicatorData.put(tf, new ConcurrentHashMap<>()));
     }
 
-    public Map<TimeFrame, Map<String, Map<String, FixedDataList<String>>>> getRawIndicatorData() {
+    public Map<TimeFrame, Map<String, Map<String, FixedDataList<IndicatorValue>>>> getRawIndicatorData() {
         return indicatorData;
     }
 
     public Map<String, String> getAvailableIndicators() {
         Map<String, String> availableIndicatorsByTimeFrames = new HashMap<>();
-        for (Map.Entry<TimeFrame, Map<String, Map<String, FixedDataList<String>>>> tfEntry : indicatorData.entrySet()) {
+        for (Map.Entry<TimeFrame, Map<String, Map<String, FixedDataList<IndicatorValue>>>> tfEntry : indicatorData.entrySet()) {
             TimeFrame timeFrame = tfEntry.getKey();
-            Map<String, Map<String, FixedDataList<String>>> symbolsMap = tfEntry.getValue();
+            Map<String, Map<String, FixedDataList<IndicatorValue>>> symbolsMap = tfEntry.getValue();
 
-            for (Map<String, FixedDataList<String>> indicatorMap : symbolsMap.values()) {
+            for (Map<String, FixedDataList<IndicatorValue>> indicatorMap : symbolsMap.values()) {
                 for (String indicatorName : indicatorMap.keySet()) {
                     availableIndicatorsByTimeFrames.put(indicatorName.toLowerCase(), timeFrame.getValue().toLowerCase());
                 }
@@ -65,26 +67,36 @@ public class IndicatorDataProvider {
 
     public void initIndicator(TimeFrame timeFrame, String symbol, String indicatorName) {
         List<Kline> kLines = tradeHistoryManager.getSymbolHistory(symbol, timeFrame);
-        if (kLines.isEmpty()) {
+        if (isEmpty(kLines)) {
             log.error("Could not get trade history for {}", symbol);
-        } else {
-            initSymbol(timeFrame, symbol);
-            indicatorData.get(timeFrame)
-                    .computeIfAbsent(symbol, s -> new ConcurrentHashMap<>())
-                    .computeIfAbsent(
-                            indicatorName,
-                            name -> new FixedDataList<>(
-                                    indicatorName,
-                                    kLines.size(),
-                                    indicatorCalculators.get(indicatorName).calculate(kLines))
-                    );
-
+            return;
         }
+
+        initSymbol(timeFrame, symbol);
+        List<String> calculatedValues = indicatorCalculators.get(indicatorName).calculate(kLines);
+        if (isEmpty(calculatedValues)) {
+            log.error("Indicator {} calculation returned empty for {}", indicatorName, symbol);
+            return;
+        }
+
+        List<IndicatorValue> indicatorValues = new ArrayList<>();
+        int startIndex = kLines.size() - calculatedValues.size();
+        for (int i = 0; i < calculatedValues.size(); i++) {
+            long ts = kLines.get(startIndex + i).getStartTime();
+            indicatorValues.add(new IndicatorValue(calculatedValues.get(i), ts));
+        }
+
+        indicatorData.get(timeFrame)
+                .computeIfAbsent(symbol, s -> new ConcurrentHashMap<>())
+                .computeIfAbsent(
+                        indicatorName,
+                        name -> new FixedDataList<>(indicatorName, calculatedValues.size(), indicatorValues)
+                );
     }
 
     public void recalculateIndicatorData() {
         for (TimeFrame timeFrame : TimeFrame.values()) {
-            Map<String, Map<String, FixedDataList<String>>> timeFrameData =
+            Map<String, Map<String, FixedDataList<IndicatorValue>>> timeFrameData =
                     indicatorData.get(timeFrame);
 
             if (isEmpty(timeFrameData)) {
@@ -95,10 +107,10 @@ public class IndicatorDataProvider {
         }
     }
 
-    private void processTimeFrame(TimeFrame timeFrame, Map<String, Map<String, FixedDataList<String>>> timeFrameData) {
+    private void processTimeFrame(TimeFrame timeFrame, Map<String, Map<String, FixedDataList<IndicatorValue>>> timeFrameData) {
         for (var symbolEntry : timeFrameData.entrySet()) {
             String symbol = symbolEntry.getKey();
-            Map<String, FixedDataList<String>> indicators = symbolEntry.getValue();
+            Map<String, FixedDataList<IndicatorValue>> indicators = symbolEntry.getValue();
 
             List<Kline> klines = tradeHistoryManager.getSymbolHistory(symbol, timeFrame);
             if (isEmpty(klines)) {
@@ -109,7 +121,7 @@ public class IndicatorDataProvider {
     }
 
     private void updateIndicators(String symbol,
-                                  Map<String, FixedDataList<String>> indicators,
+                                  Map<String, FixedDataList<IndicatorValue>> indicators,
                                   List<Kline> klines,
                                   TimeFrame timeFrame) {
         for (var indicatorEntry : indicators.entrySet()) {
@@ -127,7 +139,7 @@ public class IndicatorDataProvider {
 
     private void updateSingleIndicator(
             IndicatorCalculator calculator,
-            FixedDataList<String> indicatorData,
+            FixedDataList<IndicatorValue> indicatorData,
             List<Kline> klines,
             TimeFrame timeFrame
     ) {
@@ -151,9 +163,9 @@ public class IndicatorDataProvider {
         }
 
         if (isNewPeriod) {
-            indicatorData.add(lastValue);
+            indicatorData.add(new IndicatorValue(lastValue, lastTs));
         } else {
-            indicatorData.replaceLast(lastValue);
+            indicatorData.replaceLast(new IndicatorValue(lastValue, lastTs));
         }
     }
 
@@ -165,12 +177,12 @@ public class IndicatorDataProvider {
         return list == null || list.isEmpty();
     }
 
-    public FixedDataList<String> getIndicatorData(TimeFrame timeFrame, String symbol, String indicatorName) {
+    public FixedDataList<IndicatorValue> getIndicatorData(TimeFrame timeFrame, String symbol, String indicatorName) {
         var timeFrameIndicatorData = indicatorData.get(timeFrame);
         if (timeFrameIndicatorData == null) {
             return null;
         }
-        Map<String, FixedDataList<String>> symbolIndicatorData = timeFrameIndicatorData.get(symbol);
+        Map<String, FixedDataList<IndicatorValue>> symbolIndicatorData = timeFrameIndicatorData.get(symbol);
         if (symbolIndicatorData == null) {
             return null;
         }
@@ -186,9 +198,9 @@ public class IndicatorDataProvider {
     }
 
     public void removeIndicator(TimeFrame timeFrame, String symbol, String indicatorName) {
-        Map<String, Map<String, FixedDataList<String>>> timeFrameData = indicatorData.get(timeFrame);
+        Map<String, Map<String, FixedDataList<IndicatorValue>>> timeFrameData = indicatorData.get(timeFrame);
         if (timeFrameData != null) {
-            Map<String, FixedDataList<String>> symbolData = timeFrameData.get(symbol);
+            Map<String, FixedDataList<IndicatorValue>> symbolData = timeFrameData.get(symbol);
             if (symbolData != null) {
                 symbolData.remove(indicatorName);
                 if (symbolData.isEmpty()) {

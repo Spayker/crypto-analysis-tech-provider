@@ -32,8 +32,8 @@ class TechIndicatorManagerTest {
     @Test
     void getAvailableIndications_shouldReturnMappedMetaData() {
         // given
-        FixedDataList<String> list = mock(FixedDataList.class);
-        when(list.getLast()).thenReturn("123.45");
+        FixedDataList<IndicatorValue> list = mock(FixedDataList.class);
+        when(list.getLast()).thenReturn(new IndicatorValue("123.45", System.currentTimeMillis()));
         when(list.getSize()).thenReturn(10);
 
         when(indicatorDataProvider.getRawIndicatorData()).thenReturn(Map.of(
@@ -46,7 +46,7 @@ class TechIndicatorManagerTest {
         Map<String, List<IndicatorMetaData>> result = techIndicatorManager.getAvailableIndications();
 
         // then
-        assertThat(result).hasSize(1); // только одна монета "btc"
+        assertThat(result).hasSize(1);
         assertThat(result).containsKey("btc");
 
         List<IndicatorMetaData> metaList = result.get("btc");
@@ -62,21 +62,28 @@ class TechIndicatorManagerTest {
     @Test
     void getTechIndicatorData_shouldReturnCorrectSnapshot() {
         // given
-        FixedDataList<String> list = mock(FixedDataList.class);
-        when(list.snapshot()).thenReturn(List.of("10", "20", "30"));
+        FixedDataList<IndicatorValue> list = mock(FixedDataList.class);
+        when(list.snapshot()).thenReturn(List.of(
+                new IndicatorValue("10", 1L),
+                new IndicatorValue("20", 2L),
+                new IndicatorValue("30", 3L)
+        ));
 
         IndicatorRequest request = new IndicatorRequest("rsi", "BTC", TimeFrame.MINUTE);
 
         when(indicatorDataProvider.getAvailableIndicators()).thenReturn(Map.of("rsi", "minute"));
         when(indicatorDataProvider.getIndicatorData(TimeFrame.MINUTE, "BTCUSDT", "rsi")).thenReturn(list);
         when(indicatorProviderConfig.getStableCoin()).thenReturn("USDT");
+
         // when
-        IndicatorResponse response = techIndicatorManager.getTechIndicatorData(request);
+        IndicatorResponse<IndicatorValue> response = techIndicatorManager.getTechIndicatorData(request);
 
         // then
         assertThat(response.coin()).isEqualTo("BTCUSDT");
         assertThat(response.timeFrame()).isEqualTo("minute");
-        assertThat(response.data()).containsExactly("10", "20", "30");
+        assertThat(response.data())
+                .extracting(IndicatorValue::getValue)
+                .containsExactly("10", "20", "30");
     }
 
     @Test

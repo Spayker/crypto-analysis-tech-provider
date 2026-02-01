@@ -1,7 +1,18 @@
 FROM eclipse-temurin:21-jdk-alpine
 
-ADD ./target/crypto-analysis-tech-provider.jar /app/
+WORKDIR /app
 
-CMD sh -c "java -Dspring.profiles.active=bybit \
-  -Xmx400m -Xms400m -Xss256k -XX:MaxMetaspaceSize=100m -XX:MaxDirectMemorySize=100m \
-  -jar /app/crypto-analysis-tech-provider.jar"
+ARG JAR_FILE=target/*.jar
+COPY ${JAR_FILE} app.jar
+
+ENV JAVA_OPTS="\
+ -Dspring.profiles.active=bybit \
+ -Xms400m \
+ -Xmx400m \
+ -Xss256k \
+ -XX:MaxMetaspaceSize=100m \
+ -XX:MaxDirectMemorySize=100m"
+
+EXPOSE 8084
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

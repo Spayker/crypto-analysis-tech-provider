@@ -1,5 +1,6 @@
 package com.spayker.crypto.analysis.dao.socket.publisher;
 
+import com.spayker.crypto.analysis.dto.indicator.IndicatorValue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -26,9 +27,11 @@ class IndicatorSocketPublisherTest {
         // given
         String symbol = "btcUSDT";
         String indicatorName = "rsi";
-        String indicatorValue = "72.5";
+        String indicatorValueStr = "72.5";
+        long timestamp = 123456789L;
         String timeFrame = "hour";
 
+        IndicatorValue indicatorValue = new IndicatorValue(indicatorValueStr, timestamp);
         ArgumentCaptor<String> topicCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<IndicatorUpdateDto> dtoCaptor =
                 ArgumentCaptor.forClass(IndicatorUpdateDto.class);
@@ -47,6 +50,7 @@ class IndicatorSocketPublisherTest {
         assertEquals(symbol, dto.getSymbol());
         assertEquals(indicatorName, dto.getIndicator());
         assertEquals(timeFrame, dto.getTimeframe());
-        assertEquals(indicatorValue, dto.getValue());
+        assertEquals(indicatorValueStr, dto.getValue());
+        assertEquals(timestamp, dto.getTimestamp());
     }
 }
