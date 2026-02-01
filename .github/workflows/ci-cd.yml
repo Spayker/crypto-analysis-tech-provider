@@ -79,7 +79,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/crypto-analysis-coin-correlation:latest
-            ${{ secrets.DOCKER_USERNAME }}/crypto-analysis-coin-correlation:${{ github.sha }}
-            ghcr.io/${{ env.OWNER_LOWER }}/crypto-analysis-coin-correlation:latest
-            ghcr.io/${{ env.OWNER_LOWER }}/crypto-analysis-coin-correlation:${{ github.sha }}
+            ${{ secrets.DOCKER_USERNAME }}/crypto-analysis-tech-provider:latest
+            ${{ secrets.DOCKER_USERNAME }}/crypto-analysis-tech-provider:${{ github.sha }}
+            ghcr.io/${{ env.OWNER_LOWER }}/crypto-analysis-tech-provider:latest
+            ghcr.io/${{ env.OWNER_LOWER }}/crypto-analysis-tech-provider:${{ github.sha }}
